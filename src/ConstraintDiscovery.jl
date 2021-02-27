@@ -1,135 +1,137 @@
-function gen_valid_points(oracle, npoints=20, default_min=0.5, default_max=100)
+using Distributions
+using Combinatorics
+include("Truth.jl")
+include("Oracle.jl")
+include("LinearRegression.jl")
+
+function gen_valid_points(oracle::Oracle, npoints::Integer=20, default_min=0.5, default_max=100)::Array{Float64, 2}
+	dims = oracle.nvariables
+	dist = Uniform(default_min, default_max)
+	points = rand(dist, (npoints, dims))
 end
 
-def weak_learner(X, y, y_original):
-    """
-    Takes in X, y and returns a weak learner that tries to fit the training data and its associated R^2 score as well as the model itself
-    """
 
-    y_original = np.reshape(y_original, newshape=(len(y_original), 1))
-    # print(X.shape, y_original.shape)
-    new_X = np.append(X, y_original, axis=1)
+function weak_learner(X::AbstractMatrix{T}, y::AbstractArray{T}, y_original::AbstractArray{T})::Tuple{Array{T, 1}, T} where {T<:Real}
+    new_X = hcat(X, y_original) 
+    weights= linearRegression(new_X, y)
+    preds = hcat(new_X, ones(length(y))) * reshape(weights, (length(weights), 1))
+    mse = mean((preds-y).^2)
+    return weights, mse
+end
+function hasNaN(arr)::Bool
+	return sum(isinf.(arr)) > 0
+end
 
-    model = LinearRegression()
-    model.fit(new_X, y)
-    # Force the model to be simple by rounding coefficients to 2 decimal points
-    model.coef_ = np.round(model.coef_, 2)
-    model.intercept_ = np.round(model.intercept_, 2)
-
-    score = model.score(new_X, y)
-    return model, score
-
-
-
-function verifyTransformation(transformation, oracle, npoints=20, threshold=0.98, timeout=5)
-  # Get random npoints points from some range
-  # start the timer
+function verifyTransformation(transformation::Transformation, oracle::Oracle, npoints=20, threshold=1e-05, timeout=5)
+  t = Timer(timeout)
   sat = false;
-  while not sat # and we still have time
-    # try to gen_valid_points, 
-    #predict a y_original = oracle.f(points) if there are nans freak out
-    # set sat to true if you have a working valid dataset
+  X = nothing
+  y_original = nothing
+  while !sat && isopen(t)
+    X = gen_valid_points(oracle, npoints)
+    try
+    	y_original = OracleOutput(oracle, X)
+    	if !hasNaN(y_original)
+		sat = true
+	end
+    catch e
+	
+    end
   end
-  # if we are out of time return False, None
-  # otherwise get X_transformed using points and transformation
-  # Then try to evaluate this transformed input with the oracle and if you get an error return False and None because out of domain error after transformation
-  #model, score = weak_learner(X, y, y_original)
-  # if score is above the threshold return true with the Truth of that transformation and weight, else false with none
+  if !sat
+	close(t)
+	return false, nothing
+  else
+	X_transformed = transform(X, transformation)
+	y = nothing
+	try
+		y = OracleOutput(oracle, X_transformed)
+		if hasNaN(y)
+			return false, nothing
+		end
+	catch e
+		return false, nothing
+	end
+	weights, mse = weak_learner(X_transformed, y, y_original)
+	if mse > threshold
+		return false, weights
+	else
+		return true, Truth(transformation, weights)
+	end
+	
+  end
 end
 
 
-function powerset(iterable):
-    #return the powerset of any iterable set of integers for use in zero and value conditions
+function powerset(iterable)::Array{Array{Integer, 1}, 1}
+	return collect(combinations(iterable))
+end
+
+function pairset(iterable)::Array{Array{Integer, 1}, 1}
+	return collect(combinations(iterable, 2))
 end
 
 
-function multiprocess_task(transformation, oracle):
-    #Takes in a transformation and oracle and returns Truth if the value from discover is true else returns None
-    
+function multiprocess_task(transformation::Transformation, oracle::Oracle) 
     value, truth = verifyTransformation(transformation, oracle)
-    if value == True:
+    if value == true
         return truth
-    else:
+    else
         return nothing
+    end
+end
 
-
-function naive_procedure(oracle):
-    """
-    Takes in an oracle and gives out an exhaustive list of form [(constraint, model)] for all true constraints
-    """
+function naive_procedure(oracle::Oracle)::Array{Truth, 1}
     nvariables = oracle.nvariables
-    #var_list = range(nvariables)
-    pairs = generate every possible pair from this set
-    sets = powerset results which are non empty
+    var_list = collect(range(1, nvariables, step=1))
+    pairs = pairset(var_list)
+    sets = powerset(var_list)
     final = []
     transformations = []
-    for pair in pairs:
-        #Append a symmmetry transformation to transformations using the pair values
+    for pair in pairs
+    	type = 1 # symmetry
+	params = pair
+	push!(transformations, Transformation(type, params))
     end
-    for smallset in sets:
-        if len(smallset) > 1:
-            #transformations.append(ValueTransformation(smallset))
-        #transformations.append(ZeroTransformation(smallset))
+    for smallset in sets
+    	params = smallset
+        if length(smallset) > 1
+            type = 3 # value/ equality
+	    push!(transformations, Transformation(type, params))
+	end
+	type = 2 # zero
+	push!(transformations, Transformation(type, params))
     end
+    function task(transformation)
+	return multiprocess_task(transformation, oracle)
+    end
+    temp = task.(transformations)
     # do the multiprocess_task on all of the reansformations
     #temp = [multiprocess_task(transformation, oracle) for transformation in transformations]
-    for t in temp:
-        if t is not nothing:
-            final.append(t)
+    for t in temp
+        if t != nothing
+            push!(final, t)
+	end
+    end
     return final
 end
 
 
-def process_from_problems(problems):
-    ids = []
-    forms = []
-    ns = []
-    for problem in problems:
-        nvariables = problem.n_vars
-        form = problem.form
-        variable_names = problem.var_names
-        id = problem.eq_id
-
-        oracle = Oracle(nvariables, form=form, variable_names=variable_names, id=id)
-        ids.append(oracle.id)
-        forms.append(oracle.form)
-        ns = len(naive_procedure(oracle))
-    d = {"id": ids, "form": forms, "Number of Constraints": ns}
-    return d
-
-
-def process_from_form_and_names(form, variable_names):
-    """
-    Returns a julia string which declares an array called TRUTHS
-    """
-    if form is None or variable_names is None:
-        return "TRUTHS = []"
-    nvars = len(variable_names)
-    oracle = Oracle(nvariables=nvars, form=form, variable_names=variable_names)
+function process_from_form_and_names(form::String, variable_names::Array{String, 1})::Array{Truth, 1}
+    if form ==nothing || variable_names ==nothing
+        return []
+    end
+    oracle = Oracle(form, variable_names, "ID")
+    #println(form)
     truths = naive_procedure(oracle)
-    print("Discovered the following Auxiliary Truths")
-    for truth in truths:
-        print(truth)
-    julia_string = "TRUTHS = ["
-    for truth in truths:
-        addition = truth.julia_string()
-        julia_string = julia_string + addition + ", "
-    julia_string = julia_string + "]"
-    return julia_string
+    #println("Discovered the following Auxiliary Truths")
+    return truths
+end
 
-
-if __name__ == "__main__":
-    from Transformation import  SymTransformation
-    from Oracle import Oracle
-    from time import time
-
-    variable_names = ["alpha", "beta"]
-    form = "alpha * beta"
-    nvariables = len(variable_names)
-    # range_restriction={2: (1, 20)}
-    oracle = Oracle(nvariables, form=form, variable_names=variable_names)
-    now = time()
-    finals = naive_procedure(oracle)
-    end = time()
-    print(finals)
-    print(end - now)
+function discoverTruths(form::String, variable_names::Array{String, 1}, verbosity=1::Integer)::Array{Truth, 1}
+	truths = process_from_form_and_names(form, variable_names)
+	if verbosity > 0
+		println("Discovered the following Auxiliary Truths")
+	end
+	return truths
+end

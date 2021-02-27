@@ -1,7 +1,7 @@
 function vector_enable_string_formula(formula)
     	new_form = formula
-    	for symbol in ["+", "-", "/", "*","^", "sin", "cos", "tan", "^", "log", "sqrt"]
-    		vectorized = "."*symbol
+    	for symbol in ["+", "-", "/", "*","^", "sin", "cos", "tan", "log", "sqrt"]
+    		vectorized = " ."*symbol
 		new_form = replace(new_form, symbol => vectorized)
 		#println(new_form)
 	end
@@ -14,7 +14,7 @@ function vector_form_to_function(form, variable_names)
 		newform = replace(newform, variable_names[i] => "x["*string(i)*"]")
 	end
 	final_eval = "f(x...) ="*newform
-	println(final_eval)
+	#println(final_eval)
 	return eval(Meta.parse(final_eval))
 end
 
