@@ -5,11 +5,15 @@ using SymbolicRegression: stringTree
 using Random
 
 x1=0.1f0; x2=0.1f0; x3=0.1f0; x4=0.1f0; x5=0.1f0
-for batching in [false, true]
-    for weighted in [false, true]
+for batching in [true, false]
+    for weighted in [true, false]
         numprocs = 4
+        progress = false
+        warmupMaxsizeBy = 0f0
         if weighted && batching
             numprocs = 0 #Try serial computation here.
+            progress = true #Also try the progress bar.
+            warmupMaxsizeBy = 0.5f0 #Smaller maxsize at first, build up slowly
         end
         options = SymbolicRegression.Options(
             binary_operators=(+, *),
@@ -17,6 +21,8 @@ for batching in [false, true]
             npopulations=4,
             batching=batching,
             seed=0,
+            progress=progress,
+            warmupMaxsizeBy=warmupMaxsizeBy
         )
         X = randn(MersenneTwister(0), Float32, 5, 100)
         if weighted

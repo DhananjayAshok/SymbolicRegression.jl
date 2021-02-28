@@ -8,9 +8,9 @@ import Optim
 
 # Proxy function for optimization
 function optFunc(x::Vector{CONST_TYPE}, dataset::Dataset{T}, baseline::T,
-                 tree::Node, options::Options)::T where {T<:Real}
+                 tree::Node, options::Options; allow_diff=false)::T where {T<:Real}
     setConstants(tree, x)
-    return scoreFunc(dataset, baseline, tree, options)
+    return scoreFunc(dataset, baseline, tree, options; allow_diff=allow_diff)
 end
 
 # Use Nelder-Mead to optimize the constants in an equation
@@ -24,17 +24,34 @@ function optimizeConstants(dataset::Dataset{T},
     end
     x0 = getConstants(member.tree)
     f(x::Vector{CONST_TYPE})::T = optFunc(x, dataset, baseline, member.tree, options)
+    differentiable_f(x::Vector{CONST_TYPE})::T = optFunc(x, dataset, baseline, member.tree, options; allow_diff=true)
+    use_differentiable = false
     if nconst == 1
         algorithm = Optim.Newton
     else
-        algorithm = Optim.NelderMead
+        if options.constant_optimizer == "NelderMead"
+            algorithm = Optim.NelderMead
+        elseif options.constant_optimizer == "BFGS"
+            use_differentiable = true
+            algorithm = Optim.BFGS
+        else
+            error("Optimization function not implemented.")
+        end
     end
 
-    result = Optim.optimize(f, x0, algorithm(), Optim.Options(iterations=100))
+    result = if !use_differentiable
+        Optim.optimize(f, x0, algorithm(), Optim.Options(iterations=100))
+    else
+         Optim.optimize(differentiable_f, x0, algorithm(), Optim.Options(iterations=100))
+    end
     # Try other initial conditions:
     for i=1:options.nrestarts
         new_start = x0 .* (convert(CONST_TYPE, 1) .+ convert(CONST_TYPE, 1//2)*randn(CONST_TYPE, size(x0, 1)))
-        tmpresult = Optim.optimize(f, new_start, algorithm(), Optim.Options(iterations=100))
+        tmpresult = if !use_differentiable
+             Optim.optimize(f, new_start, algorithm(), Optim.Options(iterations=100))
+        else
+             Optim.optimize(differentiable_f, new_start, algorithm(), Optim.Options(iterations=100))
+        end
 
         if tmpresult.minimum < result.minimum
             result = tmpresult

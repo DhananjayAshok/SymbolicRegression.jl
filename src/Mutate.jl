@@ -85,7 +85,7 @@ function nextGeneration(dataset::Dataset{T},
             # SymbolicUtils is quite slow, so only rarely
             #  do we use it for simplification.
             if rand() < 0.01
-                tree = simplifyWithSymbolicUtils(tree, options)
+                tree = simplifyWithSymbolicUtils(tree, options, curmaxsize)
             end
             return PopMember(tree, beforeLoss)
 
@@ -101,7 +101,7 @@ function nextGeneration(dataset::Dataset{T},
             return PopMember(tree, beforeLoss)
         end
 
-        successful_mutation = successful_mutation && check_constraints(tree, options)
+        successful_mutation = successful_mutation && check_constraints(tree, options, curmaxsize)
 
         attempts += 1
     end
@@ -117,19 +117,24 @@ function nextGeneration(dataset::Dataset{T},
         afterLoss = scoreFunc(dataset, baseline, tree, options)
     end
 
+    if isnan(afterLoss)
+        return PopMember(copyNode(prev), beforeLoss)
+    end
+
+    probChange = 1.0
     if options.annealing
         delta = afterLoss - beforeLoss
-        probChange = exp(-delta/(temperature*options.alpha))
-        if options.useFrequency
-            oldSize = countNodes(prev)
-            newSize = countNodes(tree)
-            probChange *= frequencyComplexity[oldSize] / frequencyComplexity[newSize]
-        end
-
-        return_unaltered = (isnan(afterLoss) || probChange < rand())
-        if return_unaltered
-            return PopMember(copyNode(prev), beforeLoss)
-        end
+        probChange *= exp(-delta/(temperature*options.alpha))
     end
-    return PopMember(tree, afterLoss)
+    if options.useFrequency
+        oldSize = countNodes(prev)
+        newSize = countNodes(tree)
+        probChange *= frequencyComplexity[oldSize] / frequencyComplexity[newSize]
+    end
+
+    if probChange < rand()
+        return PopMember(copyNode(prev), beforeLoss)
+    else
+        return PopMember(tree, afterLoss)
+    end
 end

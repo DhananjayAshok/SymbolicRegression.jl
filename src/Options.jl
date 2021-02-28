@@ -118,7 +118,7 @@ struct Options{A,B,C<:Union{SupervisedLoss,Function}}
     batching::Bool
     batchSize::Int
     mutationWeights::Array{Float64, 1}
-    warmupMaxsize::Int
+    warmupMaxsizeBy::Float32
     useFrequency::Bool
     npop::Int
     ncyclesperiteration::Int
@@ -130,6 +130,9 @@ struct Options{A,B,C<:Union{SupervisedLoss,Function}}
     nbin::Int
     seed::Union{Int, Nothing}
     loss::C
+    progress::Bool
+    terminal_width::Union{Int, Nothing}
+    constant_optimizer::String
 
 end
 
@@ -237,6 +240,8 @@ Construct options for `EquationSearch` and other functions.
 - `bin_constraints=nothing`:
 - `una_constraints=nothing`:
 - `seed=nothing`: What random seed to use. `nothing` uses no seed.
+- `progress=false`: Whether to use a progress bar output (`verbosity` will
+    have no effect).
 """
 function Options(;
     binary_operators::NTuple{nbin, Any}=(div, plus, mult),
@@ -262,7 +267,7 @@ function Options(;
     batching=false,
     batchSize=50,
     mutationWeights=[10.000000, 1.000000, 1.000000, 3.000000, 3.000000, 0.010000, 1.000000, 1.000000],
-    warmupMaxsize=0,
+    warmupMaxsizeBy=0f0,
     useFrequency=false,
     npop=1000,
     ncyclesperiteration=300,
@@ -271,12 +276,23 @@ function Options(;
     probNegate=0.01f0,
     seed=nothing,
     bin_constraints=nothing,
-    una_constraints=nothing
+    una_constraints=nothing,
+    progress=false,
+    terminal_width=nothing,
+    warmupMaxsize=nothing,
+    constant_optimizer="NelderMead",
    ) where {nuna,nbin}
+
+    if warmupMaxsize != nothing
+        error("warmupMaxsize is deprecated. Please use warmupMaxsizeBy, and give the time at which the warmup will end as a fraction of the total search cycles.")
+    end
 
     if hofFile == nothing
         hofFile = "hall_of_fame.csv" #TODO - put in date/time string here
     end
+
+    @assert maxsize > 3
+    @assert warmupMaxsizeBy >= 0f0
 
     constraints::Union{Tuple,Array{Pair{Any,Any}, 1},Nothing}
 
@@ -343,7 +359,11 @@ function Options(;
         end
     end
 
-    Options{typeof(binary_operators),typeof(unary_operators), typeof(loss)}(binary_operators, unary_operators, bin_constraints, una_constraints, ns, parsimony, alpha, maxsize, maxdepth, fast_cycle, migration, hofMigration, fractionReplacedHof, shouldOptimizeConstants, hofFile, npopulations, nrestarts, perturbationFactor, annealing, batching, batchSize, mutationWeights, warmupMaxsize, useFrequency, npop, ncyclesperiteration, fractionReplaced, topn, verbosity, probNegate, nuna, nbin, seed, loss)
+    if progress
+        verbosity = 0
+    end
+
+    Options{typeof(binary_operators),typeof(unary_operators), typeof(loss)}(binary_operators, unary_operators, bin_constraints, una_constraints, ns, parsimony, alpha, maxsize, maxdepth, fast_cycle, migration, hofMigration, fractionReplacedHof, shouldOptimizeConstants, hofFile, npopulations, nrestarts, perturbationFactor, annealing, batching, batchSize, mutationWeights, warmupMaxsizeBy, useFrequency, npop, ncyclesperiteration, fractionReplaced, topn, verbosity, probNegate, nuna, nbin, seed, loss, progress, terminal_width, constant_optimizer)
 end
 
 

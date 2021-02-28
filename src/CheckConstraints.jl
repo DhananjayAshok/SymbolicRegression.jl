@@ -46,7 +46,10 @@ function flagUnaOperatorComplexity(tree::Node, ::Val{op}, options::Options)::Boo
 end
 
 """Check if user-passed constraints are violated or not"""
-function check_constraints(tree::Node, options::Options)::Bool
+function check_constraints(tree::Node, options::Options, maxsize::Int)::Bool
+    if countNodes(tree) > maxsize
+        return false
+    end
     for i=1:options.nbin
         if options.bin_constraints[i] == (-1, -1)
             continue
@@ -62,4 +65,8 @@ function check_constraints(tree::Node, options::Options)::Bool
         end
     end
     return true
+end
+
+function check_constraints(tree::Node, options::Options)::Bool
+    check_constraints(tree, options, options.maxsize)
 end
