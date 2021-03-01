@@ -9,6 +9,22 @@ struct Transformation
 	Transformation(type::Integer, params::Array{Int64, 1}) = new(type, params)
 														
 end
+
+function string(transformation::Transformation)::String
+	listString = Base.string(transformation.params)
+	if transformation.type == 1
+		return "Symmetry Constraint: variables "*listString
+	elseif transformation.type == 2
+		return "Zero Constraint: variables "*listString
+	elseif transformation.type==3
+		return "Equality Constraint: variables "*listString
+	else
+		return "Unknown Transformation"
+	end
+end
+
+Base.show(io::IO, x::Transformation) = show(io, string(x))
+																
 struct Truth
     transformation::Transformation
     weights::Array{T} where {T<: Real}
@@ -17,6 +33,12 @@ struct Truth
 	Truth(type::Int64, params::Array{Int64}, weights::Array{T}) where {T <: Real} = new(Transformation(type, params), weights)
 	
 end
+
+function string(truth::Truth)::String
+	return "(TRUTH: "*string(truth.transformation)*" weights: "*Base.string(truth.weights)
+end
+
+Base.show(io::IO, x::Truth) = show(io, string(x))
 
 
 # Returns a copy of the data with the two specified columns swapped

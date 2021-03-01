@@ -1,4 +1,9 @@
+using FromFile
 import StatsBase: sample
+@from "Truth.jl" import Truth,transform, truthPrediction
+@from "Core.jl" import Node
+@from "EvaluateEquation.jl" import evalTreeArray
+@from "PopMember.jl" import PopMember
 
 
 # Used to be Returns the MSE between the predictions and the truth provided targets for the given dataset

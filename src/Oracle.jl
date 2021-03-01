@@ -1,42 +1,42 @@
-function vector_enable_string_formula(formula)
-    	new_form = formula
-    	for symbol in ["+", "-", "/", "*","^", "sin", "cos", "tan", "log", "sqrt"]
-    		vectorized = " ."*symbol
-		new_form = replace(new_form, symbol => vectorized)
-		#println(new_form)
-	end
-	return new_form
-end
+using FromFile
+@from "Core.jl" import Node, Options
+@from "EvaluateEquation.jl" import evalTreeArray
 
-function vector_form_to_function(form, variable_names)
+function space_separate(form::String, variable_names::Array{String, 1})::String
 	newform = form
 	for i=1:length(variable_names)
-		newform = replace(newform, variable_names[i] => "x["*string(i)*"]")
+		#println("ON ", variable_names[i])
+		newform = replace(newform, variable_names[i] => "  "*variable_names[i]*"  ")
 	end
-	final_eval = "f(x...) ="*newform
-	#println(final_eval)
-	return eval(Meta.parse(final_eval))
+	return newform
+end
+
+function string_to_Node(form::String, variable_names::Array{String, 1}, options::Options)::Node
+	newform = space_separate(form, variable_names)
+	for i=1:length(variable_names)
+		#println("ON ", variable_names[i])
+		newform = replace(newform, "  "*variable_names[i]*"  " => " Node(\"x"*string(i)*"\") ")
+		#println(newform)
+	end
+	#println(newform)
+	return eval(Meta.parse(newform))
 end
 
 struct Oracle
 	nvariables::Integer
 	f
-	form::String
+	equation::Node
 	variable_names::Array{String, 1}
-	id::String
-	Oracle(f, variable_names::Array{String, 1}, id::String) = new(size(variable_names)[1],f,nothing,variable_names,id)
-	Oracle(form::String, variable_names::Array{String, 1}, id::String) = new(size(variable_names)[1], vector_form_to_function(vector_enable_string_formula(form), variable_names), vector_enable_string_formula(form), variable_names, id)
-
+	options::Options
+	Oracle(f, variable_names::Array{String, 1}, options::Options) = new(size(variable_names)[1],f,nothing,variable_names,options)
+	Oracle(form::String, variable_names::Array{String, 1}, options::Options) = new(size(variable_names)[1], nothing, string_to_Node(form, variable_names, options), variable_names, options)
 end
 
-function OracleOutput(oracle::Oracle, inps::Array{Array{Float64, 1}, 1}):Array{Float64, 1}
-	return oracle.f(inps...)
-end
-
-function OracleOutput(oracle::Oracle, inps::Array{Float64, 1})::Float64
-	return oracle.f(inps...)
-end
-
-function OracleOutput(oracle::Oracle, inps::Array{Float64, 2})::Array{Float64, 1}
-	return oracle.f(eachcol(inps)...)
+# inps of shape (dims, N) not (N, dims)
+function OracleOutput(oracle::Oracle, inps::Array{T, 2})::Array{T, 1} where {T <: Real}
+	if oracle.f == nothing
+		return evalTreeArray(oracle.equation, inps, oracle.options)[1]
+	else
+		return oracle.f(eachcol(inps)...)	
+	end	
 end
