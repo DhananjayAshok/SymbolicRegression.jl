@@ -1,6 +1,4 @@
-#include("Oracle.jl")
-#include("Truth.jl")
-include("ConstraintDiscovery.jl")
+include("../src/TruthDiscovery.jl")
 form = "a * b + c"
 var_names = ["a","b","c"]
 id = "1"
