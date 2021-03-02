@@ -65,7 +65,7 @@ using Reexport
 @from "CustomSymbolicUtilsSimplification.jl" import custom_simplify
 @from "SimplifyEquation.jl" import simplifyWithSymbolicUtils, combineOperators, simplifyTree
 @from "ProgressBars.jl" import ProgressBar, set_multiline_postfix
-
+@from "TruthDiscovery.jl" import discoverTruths
 include("Configure.jl")
 include("Deprecates.jl")
 
@@ -121,7 +121,10 @@ function EquationSearch(X::AbstractMatrix{T}, y::AbstractVector{T};
         runtests::Bool=true
        ) where {T<:Real}
 
-    dataset = Dataset(X, y,
+    form = "a*b + c*d"
+    var_names = ["a", "b", "c", "d"]
+    truths = discoverTruths(form, var_names, options)
+    dataset = Dataset(X, y, truths,
                      weights=weights,
                      varMap=varMap)
     serial = (procs == nothing && numprocs == 0)

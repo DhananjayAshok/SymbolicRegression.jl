@@ -44,8 +44,8 @@ Base.show(io::IO, x::Truth) = show(io, string(x))
 # Returns a copy of the data with the two specified columns swapped
 function swapColumns(cX::AbstractMatrix{T}, a::Integer, b::Integer)::Array{T, 2} where {T <: Real}
     X1 = copy(cX)
-    X1[:, a] = cX[:, b]
-    X1[:, b] = cX[:, a]
+    X1[a, :] = cX[b, :]
+    X1[b, :] = cX[a, :]
     return X1
 end
 
@@ -53,7 +53,7 @@ end
 function setVal(cX::AbstractMatrix{T}, a::Array{Integer, 1}, val::S)::Array{T, 2} where {T <: Real, S <: Real}
     X1 = copy(cX)
     for i in 1:size(a)[1]
-        X1[:, a[i]] = fill!(cX[:, a[i]], val)
+        X1[a[i], :] = fill!(cX[a[i], :], val)
     end
     return X1
 end
@@ -61,9 +61,9 @@ end
 # Returns a copy of the data with the specified integer indices in the list set to the first item of that list
 function setEq(cX::AbstractMatrix{T}, a::Array{Integer, 1})::Array{T, 2} where {T <: Real}
     X1 = copy(cX)
-    val = X1[:, a[1]]
+    val = X1[a[1], :]
     for i in 1:size(a)[1]
-        X1[:, a[i]] = val
+        X1[a[i], :] = val
     end
     return X1
 end
@@ -87,7 +87,8 @@ function transform(cX::AbstractMatrix{T}, truth::Truth)::Array{T, 2} where {T <:
 end
 
 # Returns a linear combination when given X of shape nxd, y of shape nx1 is f(x) and w of shape d+2x1, result is shape nx1
-function LinearPrediction(cX::AbstractMatrix{T}, cy::AbstractArray{T}, w::AbstractArray{T})::AbstractArray{T} where {T <: Real}
+function LinearPrediction(cX::AbstractMatrix{T}, cy::AbstractArray{T}, w::AbstractArray{S})::AbstractArray{T, 1} where {T <: Real, S<: Real}
+     cX = transpose(cX)
      preds = 0
      for i in 1:ndims(cX)
        preds = preds .+ cX[:,i].*w[i]
@@ -98,6 +99,11 @@ end
 
 
 # Takes in X that has been transformed and returns what the Truth projects the target values should be
-function truthPrediction(X_transformed::AbstractMatrix{T}, cy::AbstractArray{T}, truth::Truth)::Array{T} where {T <: Real}
+function transformedTruthPrediction(X_transformed::AbstractMatrix{T}, cy::AbstractArray{T}, truth::Truth)::AbstractArray{T, 1} where {T <: Real}
     return LinearPrediction(X_transformed, cy, truth.weights)
+end
+
+function truthPrediction(X::AbstractMatrix{T}, y::AbstractArray{T}, truth::Truth)::AbstractArray{T, 1} where {T <: Real}
+    transformed = transform(X, truth)
+    return transformedTruthPrediction(transformed, y, truth)
 end

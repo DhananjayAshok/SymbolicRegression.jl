@@ -46,7 +46,7 @@ function verifyTransformation(transformation::Transformation, oracle::Oracle, np
 	close(t)
 	return false, nothing
   else
-	X_transformed = transform(X, transformation)
+	X_transformed = Array(transpose(transform(transpose(X), transformation)))
 	y = nothing
 	try
 		y = OracleOutput(oracle, Array(transpose(X_transformed)))

@@ -1,7 +1,11 @@
+using FromFile
+@from "Truth.jl" import Truth
+
 struct Dataset{T<:Real}
 
     X::AbstractMatrix{T}
     y::AbstractVector{T}
+    truths::Array{Truth, 1}
     n::Int
     nfeatures::Int
     weighted::Bool
@@ -19,7 +23,8 @@ Construct a dataset to pass between internal functions.
 """
 function Dataset(
         X::AbstractMatrix{T},
-        y::AbstractVector{T};
+        y::AbstractVector{T},
+	truths::Array{Truth, 1};
         weights::Union{AbstractVector{T}, Nothing}=nothing,
         varMap::Union{Array{String, 1}, Nothing}=nothing
        ) where {T<:Real}
@@ -31,7 +36,7 @@ function Dataset(
         varMap = ["x$(i)" for i=1:nfeatures]
     end
 
-    return Dataset{T}(X, y, n, nfeatures, weighted, weights, varMap)
+    return Dataset{T}(X, y, truths, n, nfeatures, weighted, weights, varMap)
 
 end
 

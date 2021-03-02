@@ -1,78 +1,16 @@
 using FromFile
 import StatsBase: sample
 @from "Truth.jl" import Truth,transform, truthPrediction
+@from "LossFunctions.jl" import truthScore
 @from "Core.jl" import Node
 @from "EvaluateEquation.jl" import evalTreeArray
 @from "PopMember.jl" import PopMember
 
 
-# Used to be Returns the MSE between the predictions and the truth provided targets for the given dataset
-# Now is the INT number of truths violated. So this returns either 0 or 1.
-function truthScore(member::PopMember, cX::Array{Float32, 2}, cy::Array{Float32}, truth::Truth, threshold::Float32=Float32(1.0e-8))::Integer
-    transformed = transform(cX, truth)
-    targets = truthPrediction(transformed, cy, truth)
-    preds = evalTreeArray(member.tree, transformed)
-    if MSE(preds, targets) > threshold
-        return 1
-    else
-        return 0
-    end
-    return
-end
-
-# Assumes a dataset X, y for a given truth
-function truthScore(member::PopMember, truth::Truth, threshold::Float32=Float32(1.0e-8))::Integer
-    return truthScore(member, X, y, truth, threshold)
-end
-
-# Assumes a list of Truths TRUTHS is defined. Performs the truthScore function for each of them and returns the sum
-function truthScore(member::PopMember, cX::Array{Float32, 2}, cy::Array{Float32}, threshold::Float32=Float32(1.0e-8))::Integer
-    s = 0
-    for truth in TRUTHS
-        s += (truthScore(member, cX, cy, truth, threshold))
-    end
-    return s
-end
-
-# Assumes list of Truths TRUTHS and dataset X, y are defined
-function truthScore(member::PopMember, threshold::Float32=Float32(1.0e-6))::Integer
-    return truthScore(member, X, y, threshold)
-end
-
-# Returns the number of violated truths
-function truthScore(tree::Node, cX::Array{Float32, 2}, cy::Array{Float32}, truth::Truth, threshold::Float32=Float32(1.0e-8))::Integer
-    transformed = transform(cX, truth)
-    targets = truthPrediction(transformed, cy, truth)
-    preds = evalTreeArray(tree, transformed)
-    if MSE(preds, targets) > threshold
-        return 1
-    else
-        return 0
-    end
-end
-
-# Assumes a dataset X, y for a given truth
-function truthScore(tree::Node, truth::Truth, threshold::Float32=Float32(1.0e-8))::Integer
-    return truthScore(tree, X, y, truth, threshold)
-end
-
-# Assumes a list of Truths TRUTHS is defined. Performs the truthScore function for each of them and returns the average
-function truthScore(tree::Node, cX::Array{Float32, 2}, cy::Array{Float32}, threshold::Float32=Float32(1.0e-8))::Integer
-    s = 0
-    for truth in TRUTHS
-        s += (truthScore(tree, cX, cy, truth, threshold))
-    end
-    return s
-end
-
-# Assumes list of Truths TRUTHS and dataset X, y are defined
-function truthScore(tree::Node, threshold::Float32=Float32(1.0e-6))::Integer
-    return truthScore(tree, X, y, threshold)
-end
 
 # Returns true iff Truth Score is below a given threshold i.e truth is satisfied
 function testTruth(member::PopMember, truth::Truth)::Bool
-    truthError = truthScore(member, truth)
+    truthError = truthScore(member.tree, truth)
     #print(stringTree(member.tree), "\n")
     #print(truth, ": ")
     #print(truthError, "\n")

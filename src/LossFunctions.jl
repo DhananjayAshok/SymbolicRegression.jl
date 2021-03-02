@@ -4,7 +4,7 @@ using LossFunctions
 @from "Core.jl" import Options, Dataset, Node
 @from "EquationUtils.jl" import countNodes
 @from "EvaluateEquation.jl" import evalTreeArray, differentiableEvalTreeArray
-
+@from "Truth.jl" import Truth, transform, transformedTruthPrediction
 
 function Loss(x::AbstractArray{T}, y::AbstractArray{T}, options::Options{A,B,C})::T where {T<:Real,A,B,C<:SupervisedLoss}
     value(options.loss, y, x, AggMode.Mean())
@@ -18,6 +18,37 @@ function Loss(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}, opt
 end
 function Loss(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}, options::Options{A,B,C})::T where {T<:Real,A,B,C<:Function}
     sum(options.loss.(x, y, w))/sum(w)
+end
+
+function truthScore(tree::Node, x::AbstractArray{T}, y::AbstractArray{T}, truth::Truth, options::Options, threshold=1e-08)::Integer where {T<:Real}
+    transformed = transform(x, truth)
+    targets = transformedTruthPrediction(transformed, y, truth)
+    preds, waste = evalTreeArray(tree, transformed, options)
+    if Loss(preds, targets, options) > threshold
+        return 1
+    else
+        return 0
+    end
+end
+function truthScore(tree::Node, x::AbstractArray{T}, y::AbstractArray{T}, truths::Array{Truth, 1}, options::Options)::Integer where {T<:Real}
+    s = 0
+    for truth in truths
+        s += (truthScore(tree,  x, y,  truth, options))
+    end
+    return s
+end
+
+
+function truthScore(tree::Node, dataset::Dataset{T}, truth::Truth, options::Options)::Integer where {T<:Real}
+    return truthScore(tree, dataset.X, dataset.y, truth, options)
+end
+
+function truthScore(tree::Node, dataset::Dataset{T}, truths::Array{Truth, 1}, options::Options)::Integer where {T<:Real}
+    return truthScore(tree, dataset.X, dataset.y, truths, options)
+end
+
+function truthScore(tree::Node, dataset::Dataset{T}, options::Options)::Integer where {T<:Real}
+    return truthScore(tree, dataset, dataset.truths, options)
 end
 
 # Loss function. Only MSE implemented right now. TODO
@@ -40,17 +71,20 @@ function EvalLoss(tree::Node, dataset::Dataset{T}, options::Options;
     end
 end
 
+
 # Score an equation
 function scoreFunc(dataset::Dataset{T},
                    baseline::T, tree::Node,
                    options::Options; allow_diff=false)::T where {T<:Real}
     mse = EvalLoss(tree, dataset, options; allow_diff=allow_diff)
-    return mse / baseline + countNodes(tree)*options.parsimony
+    tscore = truthScore(tree, dataset, options)
+    #print(tscore)
+    return mse / baseline + countNodes(tree)*options.parsimony + tscore*0
 end
 
 # Score an equation with a small batch
 function scoreFuncBatch(dataset::Dataset{T}, baseline::T,
-                        tree::Node, options::Options)::T where {T<:Real}
+                        tree::Node, options::Options, truths::Array{T, 1}=[])::T where {T<:Real}
     batchSize = options.batchSize
     batch_idx = randperm(dataset.n)[1:options.batchSize]
     batch_X = dataset.X[:, batch_idx]
@@ -66,5 +100,9 @@ function scoreFuncBatch(dataset::Dataset{T}, baseline::T,
         batch_w = dataset.weights[batch_idx]
         mse = Loss(prediction, batch_y, batch_w, options)
     end
-    return mse / baseline + countNodes(tree) * options.parsimony
+    tscore = truthScore(tree, batch_X, batch_y, dataset.truths, options)
+    return mse / baseline + countNodes(tree) * options.parsimony + tscore*0
 end
+
+
+
