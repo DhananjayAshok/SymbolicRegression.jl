@@ -2,7 +2,7 @@ using FromFile
 @from "Core.jl" import CONST_TYPE, maxdegree, Node, Options, Dataset
 @from "EquationUtils.jl" import stringTree
 @from "PopMember.jl" import PopMember
-@from "LossFunctions.jl" import EvalLoss
+@from "LossFunctions.jl" import EvalLoss, truthScore
 using Printf: @sprintf
 
 """ List of the best members seen all time in `.members` """
@@ -42,10 +42,11 @@ function calculateParetoFrontier(dataset::Dataset{T},
         if hallOfFame.exists[size]
             member = hallOfFame.members[size]
             curMSE = EvalLoss(member.tree, dataset, options)
+	    curTruthScore = truthScore(member.tree, dataset, options)
             member.score = curMSE
             betterThanAllSmaller = all([
                 (!(hallOfFame.exists[i])
-                 || curMSE < EvalLoss(hallOfFame.members[i].tree, dataset, options))
+                 || (curMSE < EvalLoss(hallOfFame.members[i].tree, dataset, options) || curTruthScore < truthScore(hallOfFame.members[i].tree, dataset, options)  ) )
                 for i=1:(size-1)
             ])
             if betterThanAllSmaller
@@ -81,9 +82,11 @@ function string_dominating_pareto_curve(hallOfFame, baselineMSE,
     curMSE = baselineMSE
     lastMSE = curMSE
     lastComplexity = 0
+    curTruthScore = length(dataset.truths)
+    lastTruthScore = curTruthScore
     output *= "Hall of Fame:\n"
     output *= "-----------------------------------------\n"
-    output *= @sprintf("%-10s  %-8s   %-8s  %-8s\n", "Complexity", "Loss", "Score", "Equation")
+    output *= @sprintf("%-10s  %-8s %-8s   %-8s  %-8s\n", "Complexity", "Loss","Truth Score", "Score", "Equation")
 
     #TODO - call pareto function!
     actualMaxsize = options.maxsize + maxdegree
@@ -91,19 +94,22 @@ function string_dominating_pareto_curve(hallOfFame, baselineMSE,
         if hallOfFame.exists[size]
             member = hallOfFame.members[size]
             curMSE = EvalLoss(member.tree, dataset, options)
+	    curTruthScore = truthScore(member.tree, dataset, options)
             betterThanAllSmaller = all([
                     (
                          !(hallOfFame.exists[i])
-                         || curMSE < EvalLoss(hallOfFame.members[i].tree, dataset, options)
-                    ) for i=1:(size-1)
+                         || (curMSE < EvalLoss(hallOfFame.members[i].tree, dataset, options) || curTruthScore < truthScore(hallOfFame.members[i].tree, dataset, options) ) ) 
+		for i=1:(size-1)
                ])
             if betterThanAllSmaller
                 delta_c = size - lastComplexity
                 delta_l_mse = log(curMSE/lastMSE)
-                score = convert(Float32, -delta_l_mse/delta_c)
-                output *= @sprintf("%-10d  %-8.3e  %-8.3e  %-s\n" , size, curMSE, score, stringTree(member.tree, options, varMap=dataset.varMap))
+		delta_t = curTruthScore - lastTruthScore
+                score = convert(Float32, -delta_l_mse/(delta_c+delta_t))
+                output *= @sprintf("%-10d  %-8.3e %-8.3e %-8.3e  %-s\n" , size, curMSE, curTruthScore, score, stringTree(member.tree, options, varMap=dataset.varMap))
                 lastMSE = curMSE
                 lastComplexity = size
+		lastTruthScore = curTruthScore
             end
         end
     end
