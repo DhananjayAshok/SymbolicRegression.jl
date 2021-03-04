@@ -1,15 +1,17 @@
 using FromFile
 @from "Truth.jl" import Truth
 
-struct Dataset{T<:Real}
+mutable struct Dataset{T<:Real}
 
     X::AbstractMatrix{T}
-    y::AbstractVector{T}
+    y::AbstractArray{T, 1}
+    OriginalX::AbstractMatrix{T}
+    Originaly::AbstractVector{T}
     truths::Array{Truth, 1}
     n::Int
     nfeatures::Int
     weighted::Bool
-    weights::Union{AbstractVector{T}, Nothing}
+    weights::Union{AbstractArray{T, 1}, Nothing}
     varMap::Array{String, 1}
 
 end
@@ -36,7 +38,7 @@ function Dataset(
         varMap = ["x$(i)" for i=1:nfeatures]
     end
 
-    return Dataset{T}(X, y, truths, n, nfeatures, weighted, weights, varMap)
+    return Dataset{T}(X, y, copy(X), copy(y), truths, n, nfeatures, weighted, weights, varMap)
 
 end
 

@@ -5,8 +5,8 @@ import StatsBase: sample
 @from "Core.jl" import Node
 @from "EvaluateEquation.jl" import evalTreeArray
 @from "PopMember.jl" import PopMember
-
-
+@from "Dataset.jl" import Dataset
+@from "Core.jl" import Options
 
 # Returns true iff Truth Score is below a given threshold i.e truth is satisfied
 function testTruth(member::PopMember, truth::Truth)::Bool
@@ -29,8 +29,8 @@ function violatingTruths(member::PopMember)::Array{Truth}
 end
 
 # Returns true iff Truth Score is below a given threshold i.e truth is satisfied
-function testTruth(tree::Node, truth::Truth)::Bool
-    truthError = truthScore(tree, truth)
+function testTruth(tree::Node, truth::Truth, dataset::Dataset, options::Options)::Bool
+    truthError = truthScore(tree, dataset, truth, options)
     if truthError >= 1
         return false
     else
@@ -39,14 +39,14 @@ function testTruth(tree::Node, truth::Truth)::Bool
 end
 
 # Returns a list of violating functions from assumed list TRUTHS
-function violatingTruths(tree::Node)::Array{Truth}
+function violatingTruths(tree::Node, dataset::Dataset, options)::Array{Truth}
     toReturn = []
     #print("\n Checking Equation ", stringTree(tree), "\n")
-    for truth in TRUTHS
-        test_truth = testTruth(tree, truth)
+    for truth in dataset.truths
+        test_truth = testTruth(tree, truth, dataset, options)
         #print("Truth: ", truth, ": " , test_truth, "\n-----\n")
         if !test_truth
-            append!(toReturn, [truth])
+            push!(toReturn, truth)
         end
     end
     return toReturn
@@ -64,47 +64,32 @@ end
 
 function extendedX(cX::Array{Float32, 2}, truth::Truth, indx::Array{Int32, 1})::Array{Float32, 2}
     workingcX = copy(cX)
-    X_slice = workingcX[indx, :]
+    X_slice = workingcX[:, indx]
     X_transformed = transform(X_slice, truth)
     return X_transformed
 end
-function extendedX(truth::Truth, indx::Array{Int32, 1})::Union{Array{Float32, 2}, Nothing}
-    return extendedX(OriginalX, truth, indx)
-end
+
 function extendedX(cX::Array{Float32, 2}, violatedTruths::Array{Truth}, indx::Array{Int32, 1})::Union{Array{Float32, 2}, Nothing}
     if length(violatedTruths) == 0
         return nothing
     end
     workingX = extendedX(cX, violatedTruths[1], indx)
     for truth in violatedTruths[2:length(violatedTruths)]
-        workingX = vcat(workingX, extendedX(cX, truth, indx))
+        workingX = hcat(workingX, extendedX(cX, truth, indx))
     end
     return workingX
 end
-function extendedX(violatedTruths::Array{Truth}, indx::Array{Int32, 1})::Union{Array{Float32, 2}, Nothing}
-    return extendedX(OriginalX, violatedTruths, indx)
-end
-function extendedX(tree::Node, indx::Array{Int32, 1})::Union{Array{Float32, 2}, Nothing}
-    violatedTruths = violatingTruths(tree)
-    return extendedX(violatedTruths, indx)
-end
-function extendedX(member::PopMember, indx::Array{Int32, 1})::Union{Array{Float32, 2}, Nothing}
-    return extendedX(member.tree, indx)
-end
-
 
 function extendedy(cX::Array{Float32, 2}, cy::Array{Float32}, truth::Truth, indx::Array{Int32, 1})::Union{Array{Float32}, Nothing}
     cy = copy(cy)
     cX = copy(cX)
-    X_slice = cX[indx, :]
+    X_slice = cX[:, indx]
     y_slice = cy[indx]
     X_transformed = transform(X_slice, truth)
     y_transformed = truthPrediction(X_transformed, y_slice, truth)
     return y_transformed
 end
-function extendedy(truth::Truth, indx::Array{Int32, 1})::Union{Array{Float32}, Nothing}
-    return extendedy(OriginalX, Original_y, truth, indx)
-end
+
 function extendedy(cX::Array{Float32, 2}, cy::Array{Float32}, violatedTruths::Array{Truth}, indx::Array{Int32, 1})::Union{Array{Float32}, Nothing}
     if length(violatedTruths) == 0
         return nothing
@@ -115,27 +100,35 @@ function extendedy(cX::Array{Float32, 2}, cy::Array{Float32}, violatedTruths::Ar
     end
     return workingy
 end
-function extendedy(violatedTruths::Array{Truth}, indx::Array{Int32, 1})::Union{Array{Float32}, Nothing}
-    return extendedy(OriginalX,Original_y, violatedTruths, indx)
-end
-function extendedy(tree::Node, indx::Array{Int32, 1})::Union{Array{Float32}, Nothing}
-    violatedTruths = violatingTruths(tree)
-    return extendedy(violatedTruths, indx)
-end
-function extendedy(member::PopMember, indx::Array{Int32, 1})::Union{Array{Float32}, Nothing}
-    return extendedy(member.tree, indx)
+
+function extendedX(dataset::Dataset, violatedTruths::Array{Truth, 1}, indx::Array{Int32, 1})::Union{Array{Float32, 2}, Nothing}
+    return extendedX(dataset.OriginalX, violatedTruths, indx)
 end
 
-function CheckAndExtend(member::PopMember)::Nothing
-    shuf = randomIndex(OriginalX)
-    X_extension = extendedX(member, shuf)
-    y_extension = extendedy(member,shuf)
-    violations = violatingTruths(member)
+function extendedy(dataset::Dataset, violatedTruths::Array{Truth, 1}, indx::Array{Int32, 1})::Union{Array{Float32, 1}, Nothing}
+    return extendedy(dataset.OriginalX, dataset.Originaly, violatedTruths, indx)
+end
+
+
+function CheckAndExtend(member::PopMember, dataset::Dataset, options::Options, threshold::Integer=500)::Nothing
+    violatedTruths = violatingTruths(member.tree, dataset, options)
+    if length(dataset.y) > threshold
+        return
+    end
+    shuf = randomIndex(dataset.OriginalX)
+    X_extension = extendedX(dataset, violatedTruths, shuf)
+    y_extension = extendedy(dataset, violatedTruths, shuf)
+    violations = violatedTruths
     if (X_extension == nothing) || (y_extension == nothing)
         print("Equation Compliant with all Truths\n")
     else
-        global X = vcat(X, X_extension)
-        global y = vcat(y, y_extension)
-        print("Found ", length(violations), " violated truths \n")
+        catX = hcat(dataset.X, X_extension)
+	caty = vcat(dataset.y, y_extension)
+	println(size(catX))
+	println(typeof(dataset.y), " ", typeof(caty))
+	dataset.X = catX
+        dataset.y = caty
+	#println("Shape is ", size(X_extension), " ")
+        #println("Found ", length(violations), " violated truths \n")
     end
 end

@@ -66,6 +66,7 @@ using Reexport
 @from "SimplifyEquation.jl" import simplifyWithSymbolicUtils, combineOperators, simplifyTree
 @from "ProgressBars.jl" import ProgressBar, set_multiline_postfix
 @from "TruthDiscovery.jl" import discoverTruths
+@from "TruthPops.jl" import CheckAndExtend
 include("Configure.jl")
 include("Deprecates.jl")
 
@@ -127,6 +128,7 @@ function EquationSearch(X::AbstractMatrix{T}, y::AbstractVector{T};
     dataset = Dataset(X, y, truths,
                      weights=weights,
                      varMap=varMap)
+    
     serial = (procs == nothing && numprocs == 0)
     parallel = !serial
 
