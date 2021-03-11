@@ -58,7 +58,7 @@ using Reexport
 @from "MutationFunctions.jl" import genRandomTree
 @from "LossFunctions.jl" import EvalLoss, Loss, scoreFunc
 @from "PopMember.jl" import PopMember, copyPopMember
-@from "Population.jl" import Population, bestSubPop
+@from "Population.jl" import Population, bestSubPop, bestOfSample
 @from "HallOfFame.jl" import HallOfFame, calculateParetoFrontier, string_dominating_pareto_curve
 @from "SingleIteration.jl" import SRCycle, OptimizeAndSimplifyPopulation
 @from "InterfaceSymbolicUtils.jl" import node_to_symbolic, symbolic_to_node
@@ -67,6 +67,7 @@ using Reexport
 @from "ProgressBars.jl" import ProgressBar, set_multiline_postfix
 @from "TruthDiscovery.jl" import discoverTruths
 @from "TruthPops.jl" import CheckAndExtend
+@from "Dataset.jl" import extendDataset
 include("Configure.jl")
 include("Deprecates.jl")
 
@@ -129,6 +130,7 @@ function EquationSearch(X::AbstractMatrix{T}, y::AbstractVector{T};
                      weights=weights,
                      varMap=varMap)
     
+	
     serial = (procs == nothing && numprocs == 0)
     parallel = !serial
 
@@ -329,6 +331,14 @@ function EquationSearch(X::AbstractMatrix{T}, y::AbstractVector{T};
                     break
                 end
                 worker_idx = next_worker()
+                ##########################################################################################
+                # LGGA          
+                bestPops = bestOfSample(bestSubPop(cur_pop, topn=1), options)
+                #CheckAndExtend(bestPops, dataset, options)
+                X_extension, y_extension = CheckAndExtend(bestPops, dataset, options)
+                extendDataset(dataset, X_extension, y_extension)
+                println("Dataset Length is now: ", length(dataset.X))
+                ##########################################################################################                
                 allPops[i] = if parallel
                     @spawnat worker_idx let
                         tmp_pop, tmp_best_seen = SRCycle(

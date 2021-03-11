@@ -5,7 +5,7 @@ import StatsBase: sample
 @from "Core.jl" import Node
 @from "EvaluateEquation.jl" import evalTreeArray
 @from "PopMember.jl" import PopMember
-@from "Dataset.jl" import Dataset
+@from "Dataset.jl" import Dataset, extendDataset
 @from "Core.jl" import Options
 
 # Returns true iff Truth Score is below a given threshold i.e truth is satisfied
@@ -110,7 +110,7 @@ function extendedy(dataset::Dataset, violatedTruths::Array{Truth, 1}, indx::Arra
 end
 
 
-function CheckAndExtend(member::PopMember, dataset::Dataset, options::Options, threshold::Integer=500)::Nothing
+function CheckAndExtend(member::PopMember, dataset::Dataset, options::Options, threshold::Integer=500)
     violatedTruths = violatingTruths(member.tree, dataset, options)
     if length(dataset.y) > threshold
         return
@@ -121,14 +121,11 @@ function CheckAndExtend(member::PopMember, dataset::Dataset, options::Options, t
     violations = violatedTruths
     if (X_extension == nothing) || (y_extension == nothing)
         print("Equation Compliant with all Truths\n")
+		return nothing, nothing
     else
-        catX = hcat(dataset.X, X_extension)
-	caty = vcat(dataset.y, y_extension)
-	println(size(catX))
-	println(typeof(dataset.y), " ", typeof(caty))
-	dataset.X = catX
-        dataset.y = caty
-	#println("Shape is ", size(X_extension), " ")
-        #println("Found ", length(violations), " violated truths \n")
+		return X_extension, y_extension
+		#extendDataset(dataset, X_extension, y_extension)    
     end
 end
+
+

@@ -9,7 +9,6 @@ using FromFile
 @from "HallOfFame.jl" import HallOfFame
 @from "RegularizedEvolution.jl" import regEvolCycle
 @from "ConstantOptimization.jl" import optimizeConstants
-@from "TruthPops.jl" import CheckAndExtend
 
 # Cycle through regularized evolution many times,
 # printing the fittest equation every 10% through
@@ -40,8 +39,6 @@ function SRCycle(dataset::Dataset{T}, baseline::T,
                 best_examples_seen.members[size] = copyPopMember(member)
             end
         end
-	bestPops = bestOfSample(bestSubPop(pop, topn=1), options)
-	CheckAndExtend(bestPops, dataset, options)
         if verbosity > 0 && (temperature % verbosity == 0) # TODO: Remove this
             bestPops = bestSubPop(pop)
             bestCurScoreIdx = argmin([bestPops.members[member].score for member=1:bestPops.n])

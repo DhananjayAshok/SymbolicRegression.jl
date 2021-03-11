@@ -4,14 +4,14 @@ using FromFile
 mutable struct Dataset{T<:Real}
 
     X::AbstractMatrix{T}
-    y::AbstractArray{T, 1}
+    y::AbstractVector{T}
     OriginalX::AbstractMatrix{T}
     Originaly::AbstractVector{T}
     truths::Array{Truth, 1}
     n::Int
     nfeatures::Int
     weighted::Bool
-    weights::Union{AbstractArray{T, 1}, Nothing}
+    weights::Union{AbstractVector{T}, Nothing}
     varMap::Array{String, 1}
 
 end
@@ -40,5 +40,16 @@ function Dataset(
 
     return Dataset{T}(X, y, copy(X), copy(y), truths, n, nfeatures, weighted, weights, varMap)
 
+end
+
+function extendDataset(dataset , X , y)
+	if X != nothing && y != nothing
+		catX = hcat(dataset.X, X)
+		caty = vcat(dataset.y, y)
+		#println("d ", typeof(dataset.X), size(dataset.X))
+		#println("x ", typeof(X), size(X))
+		dataset.X = catX
+		dataset.y = caty
+	end
 end
 
