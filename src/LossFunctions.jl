@@ -20,12 +20,18 @@ function Loss(x::AbstractArray{T}, y::AbstractArray{T}, w::AbstractArray{T}, opt
     sum(options.loss.(x, y, w))/sum(w)
 end
 
-function truthScore(tree::Node, x::AbstractArray{T}, y::AbstractArray{T}, truth::Truth, options::Options, threshold=1e-08)::Integer where {T<:Real}
-    transformed = transform(x, truth)
+function truthLoss(tree::Node, x::AbstractArray{T}, y::AbstractArray{T}, truth::Truth, options::Options)::T where {T<:Real}
+	transformed = transform(x, truth)
     targets = transformedTruthPrediction(transformed, y, truth)
     preds, waste = evalTreeArray(tree, transformed, options)
-    if Loss(preds, targets, options) > threshold
-        return 1
+	loss = Loss(preds, targets, options)
+	return loss
+end
+
+function truthScore(tree::Node, x::AbstractArray{T}, y::AbstractArray{T}, truth::Truth, options::Options, threshold=1e-01)::Integer where {T<:Real}
+   	loss = truthLoss(tree, x, y, truth, options)
+    if loss > threshold
+		return 1
     else
         return 0
     end

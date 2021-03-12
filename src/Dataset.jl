@@ -26,7 +26,7 @@ Construct a dataset to pass between internal functions.
 function Dataset(
         X::AbstractMatrix{T},
         y::AbstractVector{T},
-	truths::Array{Truth, 1};
+	truths::Union{Array{Truth, 1}, Array{Any, 1}};
         weights::Union{AbstractVector{T}, Nothing}=nothing,
         varMap::Union{Array{String, 1}, Nothing}=nothing
        ) where {T<:Real}

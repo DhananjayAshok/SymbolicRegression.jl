@@ -123,9 +123,10 @@ function EquationSearch(X::AbstractMatrix{T}, y::AbstractVector{T};
         runtests::Bool=true
        ) where {T<:Real}
 
-    form = "a*b + c*d"
+    form = "a * b * inv(c * d)"
     var_names = ["a", "b", "c", "d"]
     truths = discoverTruths(form, var_names, options)
+    #truths = []
     dataset = Dataset(X, y, truths,
                      weights=weights,
                      varMap=varMap)
@@ -337,7 +338,7 @@ function EquationSearch(X::AbstractMatrix{T}, y::AbstractVector{T};
                 #CheckAndExtend(bestPops, dataset, options)
                 X_extension, y_extension = CheckAndExtend(bestPops, dataset, options)
                 extendDataset(dataset, X_extension, y_extension)
-                println("Dataset Length is now: ", length(dataset.X))
+                println("Dataset Length is now: ", length(dataset.y))
                 ##########################################################################################                
                 allPops[i] = if parallel
                     @spawnat worker_idx let

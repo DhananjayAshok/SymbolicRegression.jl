@@ -1,9 +1,10 @@
 using FromFile
 import StatsBase: sample
 @from "Truth.jl" import Truth,transform, truthPrediction
-@from "LossFunctions.jl" import truthScore
+@from "LossFunctions.jl" import truthScore, truthLoss
 @from "Core.jl" import Node
 @from "EvaluateEquation.jl" import evalTreeArray
+@from "EquationUtils.jl" import stringTree
 @from "PopMember.jl" import PopMember
 @from "Dataset.jl" import Dataset, extendDataset
 @from "Core.jl" import Options
@@ -112,17 +113,23 @@ end
 
 function CheckAndExtend(member::PopMember, dataset::Dataset, options::Options, threshold::Integer=500)
     violatedTruths = violatingTruths(member.tree, dataset, options)
+	#println(length(dataset.y))
     if length(dataset.y) > threshold
-        return
+		println("Exceeds")
+        return nothing, nothing
     end
     shuf = randomIndex(dataset.OriginalX)
     X_extension = extendedX(dataset, violatedTruths, shuf)
     y_extension = extendedy(dataset, violatedTruths, shuf)
     violations = violatedTruths
     if (X_extension == nothing) || (y_extension == nothing)
-        print("Equation Compliant with all Truths\n")
+        println("Equation ", stringTree(member.tree, options) ," compliant with all Truths\n")
 		return nothing, nothing
     else
+		println("Equation ",stringTree(member.tree, options) ," violated the following Truths")
+		for truth in violatedTruths
+			println(truth, "with Truth Loss ", truthLoss(member.tree, dataset.X, dataset.y, truth, options))
+		end
 		return X_extension, y_extension
 		#extendDataset(dataset, X_extension, y_extension)    
     end
