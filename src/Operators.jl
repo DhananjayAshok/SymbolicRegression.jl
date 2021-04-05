@@ -1,5 +1,17 @@
-import SpecialFunctions: gamma, lgamma, erf, erfc, beta
+import SpecialFunctions
+import SpecialFunctions: erf, erfc
 #TODO - actually add these operators to the module!
+
+function gamma(x::T)::T where {T<:Real}
+    if x <= T(0) && abs(x % 1) < T(1e-6)
+        T(1//100000000)
+    else
+        SpecialFunctions.gamma(x)
+    end
+end
+gamma(x) = SpecialFunctions.gamma(x)
+
+atanh_clip(x) = atanh(mod(x+1, 2) - 1)
 
 # Implicitly defined:
 #binary: mod
@@ -37,6 +49,12 @@ end
 function log10_abs(x::T)::T where {T<:Real}
     log10(abs(x) + convert(T, 1//100000000))
 end
+function log1p_abs(x::T)::T where {T<:Real}
+    log(abs(x) + convert(T, 1))
+end
+function acosh_abs(x::T)::T where {T<:Real}
+    acosh(abs(x) + convert(T, 1))
+end
 
 # Generics:
 square(x) = x * x
@@ -49,6 +67,8 @@ div(x, y) = x / y
 log_abs(x) = log(abs(x) + 1//100000000)
 log2_abs(x) = log2(abs(x) + 1//100000000)
 log10_abs(x) = log10(abs(x) + 1//100000000)
+log1p_abs(x) = log(abs(x) + 1)
+acosh_abs(x) = acosh(abs(x) + 1)
 
 function sqrt_abs(x::T)::T where {T}
 	sqrt(abs(x))

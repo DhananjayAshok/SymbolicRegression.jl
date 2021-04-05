@@ -35,12 +35,20 @@ export Population,
     log_abs,
     log2_abs,
     log10_abs,
+    log1p_abs,
+    acosh_abs,
     sqrt_abs,
     neg,
     greater,
     relu,
     logical_or,
-    logical_and
+    logical_and,
+
+    # special operators
+    gamma,
+    erf,
+    erfc,
+    atanh_clip
 
 using Distributed
 using Printf: @printf
@@ -50,7 +58,7 @@ using FromFile
 using Reexport
 @reexport using LossFunctions
 
-@from "Core.jl" import CONST_TYPE, maxdegree, Dataset, Node, copyNode, Options, plus, sub, mult, square, cube, pow, div, log_abs, log2_abs, log10_abs, sqrt_abs, neg, greater, greater, relu, logical_or, logical_and
+@from "Core.jl" import CONST_TYPE, maxdegree, Dataset, Node, copyNode, Options, plus, sub, mult, square, cube, pow, div, log_abs, log2_abs, log10_abs, log1p_abs, sqrt_abs, acosh_abs, neg, greater, greater, relu, logical_or, logical_and, gamma, erf, erfc, atanh_clip
 @from "Utils.jl" import debug, debug_inline, is_anonymous_function
 @from "EquationUtils.jl" import countNodes, printTree, stringTree
 @from "EvaluateEquation.jl" import evalTreeArray, differentiableEvalTreeArray
